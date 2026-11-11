@@ -176,7 +176,7 @@ pub fn run(args: Args, arg_count: usize) -> std::io::Result<()> {
             .config
             .ui
             .recent_roms
-            .truncate(ui::gui::RECENT_LIMIT);
+            .truncate(ui::config::RECENT_LIMIT);
 
         if args.fullscreen {
             device.ui.video.fullscreen = true;

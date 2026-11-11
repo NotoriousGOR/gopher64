@@ -82,6 +82,10 @@ pub struct Ui {
     pub recent_roms: Vec<String>,
 }
 
+/// How many recently played cartridges to remember. Lives here rather than in `ui::gui`
+/// because the CLI build (`--no-default-features`) trims the list too.
+pub const RECENT_LIMIT: usize = 20;
+
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub input: Input,

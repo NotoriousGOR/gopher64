@@ -110,10 +110,6 @@ fn rom_exists(path: &str) -> bool {
     return android::rom_exists(path);
 }
 
-/// How many recently played cartridges to remember. Kept in one place because the GUI and
-/// the CLI both trim the list.
-pub const RECENT_LIMIT: usize = 20;
-
 /// Build the display row for a cartridge path: the file name without its extension, and
 /// the containing folder underneath so two copies of the same ROM stay distinguishable.
 fn cartridge_entry(path: &str) -> Cartridge {
@@ -141,7 +137,7 @@ fn recent_model(paths: impl IntoIterator<Item = String>) -> slint::ModelRc<Cartr
         paths
             .into_iter()
             .filter(|path| rom_exists(path))
-            .take(RECENT_LIMIT)
+            .take(ui::config::RECENT_LIMIT)
             .map(|path| cartridge_entry(&path))
             .collect::<Vec<Cartridge>>(),
     )))
