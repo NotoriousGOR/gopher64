@@ -53,6 +53,12 @@ pub struct Args {
     pub deadzone: Option<i32>,
     #[arg(
         long,
+        value_name = "RANGE",
+        help = "Used along with --configure-input-profile to set the maximum analog stick value (real N64 sticks read about 80)"
+    )]
+    pub range: Option<i32>,
+    #[arg(
+        long,
         value_name = "PROFILE_NAME",
         help = "Must also specify --port. Used to bind a previously created profile to a port"
     )]
@@ -165,7 +171,12 @@ pub fn run(args: Args, arg_count: usize) -> std::io::Result<()> {
 
         device.ui.config.ui.recent_roms.retain(|x| *x != game);
         device.ui.config.ui.recent_roms.insert(0, game);
-        device.ui.config.ui.recent_roms.truncate(5);
+        device
+            .ui
+            .config
+            .ui
+            .recent_roms
+            .truncate(ui::gui::RECENT_LIMIT);
 
         if args.fullscreen {
             device.ui.video.fullscreen = true;
@@ -302,6 +313,7 @@ pub fn run(args: Args, arg_count: usize) -> std::io::Result<()> {
                 profile,
                 args.use_dinput,
                 args.deadzone.unwrap_or(ui::input_profile::DEADZONE_DEFAULT),
+                args.range.unwrap_or(ui::input_profile::RANGE_DEFAULT),
             );
 
             ui::sdl_close();

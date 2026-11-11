@@ -33,6 +33,10 @@ pub struct InputProfile {
     pub inputs: [[Option<InputItem>; 2]; ui::input_profile::PROFILE_SIZE],
     pub dinput: bool,
     pub deadzone: i32,
+    // Older configs predate this field, so it has to default rather than fail the whole
+    // config and throw away the user's bindings.
+    #[serde(default = "ui::input_profile::default_range")]
+    pub range: i32,
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]

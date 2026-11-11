@@ -5,7 +5,10 @@ use crate::ui;
 const X_AXIS_SHIFT: usize = 16;
 const Y_AXIS_SHIFT: usize = 24;
 
-const MAX_AXIS_VALUE: f64 = 85.0;
+/// Fraction of the cardinal maximum a full diagonal is allowed to reach. The N64's
+/// octagonal gate stops the stick well short of a circle's corner; 70/85 is the ratio
+/// gopher64 has always applied, kept here so changing the range preserves the shape.
+const DIAGONAL_RATIO: f64 = 70.0 / 85.0;
 
 pub const UNKNOWN_CONTROLLER_NAME: &str = "Unknown controller";
 
@@ -23,8 +26,9 @@ pub struct InputData {
     pub pak_change_pressed: bool,
 }
 
-fn bound_axis(x: &mut f64, y: &mut f64) {
-    let radius = f64::sqrt(70.0 * 70.0 + 70.0 * 70.0); // this is roughly the maximum diagonal distance of the controller
+fn bound_axis(x: &mut f64, y: &mut f64, max_axis_value: f64) {
+    // roughly the maximum diagonal distance the controller gate allows
+    let radius = max_axis_value * DIAGONAL_RATIO * std::f64::consts::SQRT_2;
 
     // Calculate the distance from the origin (0, 0)
     let distance = f64::sqrt((*x) * (*x) + (*y) * (*y));
@@ -37,8 +41,8 @@ fn bound_axis(x: &mut f64, y: &mut f64) {
     }
 }
 
-fn apply_deadzone(x: &mut f64, y: &mut f64, deadzone: i32) {
-    let axis_deadzone = MAX_AXIS_VALUE * (deadzone as f64 / 100.0);
+fn apply_deadzone(x: &mut f64, y: &mut f64, deadzone: i32, max_axis_value: f64) {
+    let axis_deadzone = max_axis_value * (deadzone as f64 / 100.0);
 
     // Calculate the distance from the origin (0, 0)
     let distance = f64::sqrt((*x) * (*x) + (*y) * (*y));
@@ -50,13 +54,13 @@ fn apply_deadzone(x: &mut f64, y: &mut f64, deadzone: i32) {
     }
 
     let new_distance =
-        (distance - axis_deadzone) * MAX_AXIS_VALUE / (MAX_AXIS_VALUE - axis_deadzone);
+        (distance - axis_deadzone) * max_axis_value / (max_axis_value - axis_deadzone);
     *x = *x / distance * new_distance;
     *y = *y / distance * new_distance;
 }
 
-fn normalize_axis_position(axis_position: i16) -> f64 {
-    axis_position as f64 * MAX_AXIS_VALUE / i16::MAX as f64
+fn normalize_axis_position(axis_position: i16, max_axis_value: f64) -> f64 {
+    axis_position as f64 * max_axis_value / i16::MAX as f64
 }
 
 fn set_axis_value(x: &mut f64, y: &mut f64, axis: usize, magnitude: f64) {
@@ -84,6 +88,7 @@ fn set_axis(
         ui::input_profile::AXIS_UP,
     ];
     let mut has_deadzone = false;
+    let max_axis_value = profile.range as f64;
     for axis in axes {
         for input in profile.inputs[axis].iter() {
             if !controller.is_null()
@@ -100,7 +105,7 @@ fn set_axis(
                         &mut x,
                         &mut y,
                         axis,
-                        normalize_axis_position(axis_position).abs(),
+                        normalize_axis_position(axis_position, max_axis_value).abs(),
                     );
                     has_deadzone = true;
                 }
@@ -114,21 +119,21 @@ fn set_axis(
                         &mut x,
                         &mut y,
                         axis,
-                        normalize_axis_position(axis_position).abs(),
+                        normalize_axis_position(axis_position, max_axis_value).abs(),
                     );
                     has_deadzone = true;
                 }
             } else if let Some(ui::config::InputItem::Key(key)) = input
                 && unsafe { *keyboard_state.offset(key.id as isize) }
             {
-                set_axis_value(&mut x, &mut y, axis, MAX_AXIS_VALUE);
+                set_axis_value(&mut x, &mut y, axis, max_axis_value);
             }
         }
     }
 
     y = y.neg();
     if has_deadzone {
-        apply_deadzone(&mut x, &mut y, profile.deadzone);
+        apply_deadzone(&mut x, &mut y, profile.deadzone, max_axis_value);
     }
     (x, y)
 }
@@ -416,6 +421,7 @@ pub fn get(ui: &mut ui::Ui, channel: usize) -> InputData {
         alt_pressed,
     );
 
+    let max_axis_value = profile.range as f64;
     let (mut x, mut y) = set_axis(profile, joystick, controller, ui.input.keyboard_state);
 
     #[cfg(target_os = "android")]
@@ -425,12 +431,12 @@ pub fn get(ui: &mut ui::Ui, channel: usize) -> InputData {
             && joystick.is_null()
             && let Ok(touch_overlay) = ui::android::TOUCH_OVERLAY.lock()
         {
-            x = normalize_axis_position(touch_overlay.x);
-            y = normalize_axis_position(touch_overlay.y);
+            x = normalize_axis_position(touch_overlay.x, max_axis_value);
+            y = normalize_axis_position(touch_overlay.y, max_axis_value);
             keys = touch_overlay.buttons;
         }
     }
-    bound_axis(&mut x, &mut y);
+    bound_axis(&mut x, &mut y, max_axis_value);
 
     keys |= (x.round() as i8 as u8 as u32) << X_AXIS_SHIFT;
     keys |= (y.round() as i8 as u8 as u32) << Y_AXIS_SHIFT;

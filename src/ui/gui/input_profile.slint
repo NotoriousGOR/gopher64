@@ -12,6 +12,7 @@ export global InputProfileData {
     in-out property <bool> dinput;
     in-out property <string> profile_name;
     in-out property <int> deadzone;
+    in-out property <int> range;
     in-out property <bool> show_input_profile;
 }
 
@@ -21,6 +22,7 @@ export component InputProfileDialog inherits Page {
     in-out property dinput <=> InputProfileData.dinput;
     in-out property profile_name <=> InputProfileData.profile_name;
     in-out property deadzone <=> InputProfileData.deadzone;
+    in-out property range <=> InputProfileData.range;
     VerticalBox {
         alignment: start;
 
@@ -58,6 +60,40 @@ export component InputProfileDialog inherits Page {
             Text {
                 text: InputProfileData.deadzone + "%";
                 vertical-alignment: center;
+            }
+        }
+
+        HorizontalBox {
+            vertical-stretch: 0;
+            alignment: center;
+            Text {
+                text: @tr("Stick Range");
+                vertical-alignment: center;
+            }
+
+            Slider {
+                min-width: 160px;
+                minimum: 60;
+                maximum: 100;
+                value: InputProfileData.range;
+                changed(value) => {
+                    InputProfileData.range = value;
+                }
+            }
+
+            Text {
+                text: InputProfileData.range + (InputProfileData.range == 80 ? @tr(" (hardware)") : "");
+                vertical-alignment: center;
+            }
+        }
+
+        HorizontalBox {
+            vertical-stretch: 0;
+            alignment: center;
+            Text {
+                wrap: word-wrap;
+                horizontal-alignment: center;
+                text: @tr("Maximum value sent to the game on a single axis. A real N64 stick reads about 80; lower values make games that read the stick directly (Ocarina of Time, Majora's Mask) behave like they do on hardware.");
             }
         }
 

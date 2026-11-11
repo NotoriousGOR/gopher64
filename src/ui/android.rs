@@ -214,6 +214,7 @@ pub fn spawn_configure_input_profile(
     profile_name: slint::SharedString,
     dinput: bool,
     deadzone: i32,
+    range: i32,
 ) {
     if let Ok(app) = ANDROID_APP.lock()
         && let Some(app) = app.as_ref()
@@ -225,6 +226,7 @@ pub fn spawn_configure_input_profile(
                 profile_name.to_string(),
                 dinput,
                 deadzone,
+                range,
             )
         }) {
             eprintln!("JNI error while starting N64Activity: {err:?}");
@@ -238,6 +240,7 @@ fn start_configure_input_profile_on_jvm(
     profile_name: String,
     dinput: bool,
     deadzone: i32,
+    range: i32,
 ) -> jni::errors::Result<()> {
     let raw_activity_global = app.activity_as_ptr() as jni::sys::jobject;
     let activity = unsafe { env.as_cast_raw::<Global<AndroidActivity>>(&raw_activity_global)? };
@@ -251,6 +254,8 @@ fn start_configure_input_profile_on_jvm(
         JString::from_str(env, &profile_name)?,
         JString::from_str(env, "--deadzone")?,
         JString::from_str(env, &deadzone.to_string())?,
+        JString::from_str(env, "--range")?,
+        JString::from_str(env, &range.to_string())?,
     ];
     if dinput {
         args.push(JString::from_str(env, "--use-dinput")?);

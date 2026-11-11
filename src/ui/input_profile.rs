@@ -23,6 +23,16 @@ pub const PROFILE_SIZE: usize = 19;
 
 pub const DEADZONE_DEFAULT: i32 = 5;
 
+/// Maximum value reported on a single axis. A healthy N64 stick reads about 80 at the
+/// cardinal gate notches; 85 is what gopher64 has always used, so it stays the default.
+pub const RANGE_DEFAULT: i32 = 85;
+pub const RANGE_MIN: i32 = 60;
+pub const RANGE_MAX: i32 = 100;
+
+pub fn default_range() -> i32 {
+    RANGE_DEFAULT
+}
+
 const GATHER_TIME: usize = 5;
 
 pub fn configure_input_profile(
@@ -30,6 +40,7 @@ pub fn configure_input_profile(
     profile_name: String,
     dinput: bool,
     deadzone: i32,
+    range: i32,
 ) {
     ui::sdl_init(sdl3_sys::init::SDL_INIT_VIDEO);
     ui::sdl_init(sdl3_sys::init::SDL_INIT_GAMEPAD);
@@ -51,6 +62,7 @@ pub fn configure_input_profile(
             inputs: [const { [None, None] }; PROFILE_SIZE],
             dinput,
             deadzone,
+            range,
         }
     };
 
@@ -111,6 +123,7 @@ pub fn configure_input_profile(
 
     if draw_profile_screen(window, renderer, text_engine, font, &mut profile, dinput) {
         profile.deadzone = deadzone;
+        profile.range = range.clamp(RANGE_MIN, RANGE_MAX);
         profile.dinput = dinput;
         config.input.input_profiles.insert(profile_name, profile);
     }
@@ -944,5 +957,6 @@ pub fn get_default_profile() -> ui::config::InputProfile {
         inputs,
         dinput: false,
         deadzone: DEADZONE_DEFAULT,
+        range: RANGE_DEFAULT,
     }
 }
