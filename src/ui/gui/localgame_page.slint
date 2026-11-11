@@ -124,89 +124,95 @@ export component LocalGame inherits Page {
     callback recent_roms_clear_clicked;
     title: @tr("Play");
 
-    HorizontalBox {
-        padding: 0px;
-        alignment: start;
-        spacing: 8px;
-
-        Button {
-            primary: true;
-            text: @tr("Open Cartridge…");
-            enabled: !State.game_running;
-            clicked => {
-                open_rom_button_clicked();
-            }
-        }
-
-        if !State.is_android: Button {
-            text: @tr("Saves Folder");
-            clicked => {
-                saves_folder_button_clicked();
-            }
-        }
-    }
-
-    if AboutData.has_update: NewVersionButton {
-        newversion_button_clicked => {
-            newversion_button_clicked();
-        }
-    }
-
-    if State.recent_roms.length == 0: Rectangle {
-        height: 120px;
-        VerticalLayout {
-            alignment: center;
-            spacing: 6px;
-
-            Text {
-                horizontal-alignment: center;
-                font-size: 14px;
-                color: Palette.foreground.transparentize(0.3);
-                text: @tr("No cartridges yet");
-            }
-
-            Text {
-                horizontal-alignment: center;
-                wrap: word-wrap;
-                color: Palette.foreground.transparentize(0.5);
-                text: State.is_android
-                    ? @tr("Open a cartridge to start playing. It will show up here next time.")
-                    : @tr("Open a cartridge, or drag a ROM file onto this window. It will show up here next time.");
-            }
-        }
-    }
-
-    if State.recent_roms.length > 0: VerticalLayout {
-        spacing: 6px;
+    // One column so the list and its Clear action stay visually related instead of
+    // being flung to opposite edges of a wide window.
+    VerticalLayout {
+        spacing: 14px;
+        max-width: 620px;
 
         HorizontalLayout {
-            alignment: space-between;
-
-            Text {
-                text: @tr("Recent Cartridges");
-                font-size: 12px;
-                font-weight: 700;
-                letter-spacing: 0.4px;
-                vertical-alignment: center;
-                color: Palette.foreground.transparentize(0.4);
-            }
+            alignment: start;
+            spacing: 8px;
 
             Button {
-                text: @tr("Clear");
+                primary: true;
+                text: @tr("Open Cartridge…");
+                enabled: !State.game_running;
                 clicked => {
-                    recent_roms_clear_clicked();
+                    open_rom_button_clicked();
+                }
+            }
+
+            if !State.is_android: Button {
+                text: @tr("Saves Folder");
+                clicked => {
+                    saves_folder_button_clicked();
                 }
             }
         }
 
-        for cartridge in State.recent_roms: CartridgeRow {
-            cartridge: cartridge;
-            enabled: !State.game_running;
-            activated => {
-                recent_rom_button_clicked(cartridge.path);
+        if AboutData.has_update: NewVersionButton {
+            newversion_button_clicked => {
+                newversion_button_clicked();
             }
-            removed => {
-                recent_rom_remove_clicked(cartridge.path);
+        }
+
+        if State.recent_roms.length == 0: Rectangle {
+            height: 120px;
+            VerticalLayout {
+                alignment: center;
+                spacing: 6px;
+
+                Text {
+                    horizontal-alignment: center;
+                    font-size: 14px;
+                    color: Palette.foreground.transparentize(0.3);
+                    text: @tr("No cartridges yet");
+                }
+
+                Text {
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                    color: Palette.foreground.transparentize(0.5);
+                    text: State.is_android
+                        ? @tr("Open a cartridge to start playing. It will show up here next time.")
+                        : @tr("Open a cartridge, or drag a ROM file onto this window. It will show up here next time.");
+                }
+            }
+        }
+
+        if State.recent_roms.length > 0: VerticalLayout {
+            spacing: 6px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                Text {
+                    text: @tr("Recent Cartridges");
+                    font-size: 12px;
+                    font-weight: 700;
+                    letter-spacing: 0.4px;
+                    vertical-alignment: center;
+                    color: Palette.foreground.transparentize(0.4);
+                }
+
+                Button {
+                    text: @tr("Clear");
+                    clicked => {
+                        recent_roms_clear_clicked();
+                    }
+                }
+            }
+
+            for cartridge in State.recent_roms: CartridgeRow {
+                cartridge: cartridge;
+                enabled: !State.game_running;
+                activated => {
+                    recent_rom_button_clicked(cartridge.path);
+                }
+                removed => {
+                    recent_rom_remove_clicked(cartridge.path);
+                }
             }
         }
     }
