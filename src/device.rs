@@ -55,9 +55,6 @@ pub fn run_game(
     netplay_config: Option<netplay::NetplayConfig>,
 ) {
     device.cpu.overclock = game_settings.overclock;
-    if game_settings.disable_expansion_pak {
-        device.rdram.size = 0x400000;
-    }
     if let Some(slot) = game_settings.load_savestate_slot {
         device.ui.storage.save_state_slot = slot;
         device.ui.savestate.load_state = true;
@@ -65,10 +62,24 @@ pub fn run_game(
 
     cart::rom::init(device, rom_contents); // cart needs to come before rdram
 
+    // Majora's Mask and Donkey Kong 64 do not boot at all without the Expansion Pak, so
+    // the global setting is ignored for them rather than dropping the player on the
+    // game's "Expansion Pak required" screen with no explanation.
+    let requires_expansion_pak = matches!(device.ui.game_id.as_str(), "NZS" | "NDO");
+    if game_settings.disable_expansion_pak && !requires_expansion_pak {
+        device.rdram.size = 0x400000;
+    }
+
     // rdram pointer is shared with parallel-rdp and retroachievements
     rdram::init(device);
 
     ui::video::init(device, netplay_config.is_some());
+    if game_settings.disable_expansion_pak && requires_expansion_pak {
+        ui::video::onscreen_message(
+            "This game requires the Expansion Pak, keeping 8MB of RDRAM",
+            ui::video::MESSAGE_LENGTH_MESSAGE_SHORT,
+        );
+    }
     ui::audio::init(device);
     ui::input::init(&mut device.ui);
 

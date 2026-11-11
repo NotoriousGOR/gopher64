@@ -14,6 +14,7 @@ pub const FLASHRAM_PAGE_SIZE: usize = 128;
 const FLASHRAM_SECTOR_SIZE: usize = 0x4000;
 const FLASHRAM_BUS_MASK: u32 = 0x07FFFFFF;
 const FLASHRAM_STATUS: u8 = 0x8c;
+const FLASHRAM_ERASED: u8 = 0xff;
 
 #[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum FlashramMode {
@@ -301,8 +302,17 @@ fn flashram_command(device: &mut device::Device, command: u32) {
         }
         0xa5 => {
             let base = (command as usize & 0x3ff) * FLASHRAM_PAGE_SIZE;
-            device.ui.storage.saves.flash.data[base..base + FLASHRAM_PAGE_SIZE]
-                .copy_from_slice(&flash.page_buf);
+            // NOR flash can only clear bits; programming a page that was not erased first
+            // ANDs into it rather than replacing it (matches ares).
+            for (dst, src) in device.ui.storage.saves.flash.data[base..base + FLASHRAM_PAGE_SIZE]
+                .iter_mut()
+                .zip(flash.page_buf.iter())
+            {
+                *dst &= *src;
+            }
+            // The page buffer latches back to all-ones after a program, so a following
+            // partial page load cannot program leftovers from the previous page.
+            flash.page_buf = [FLASHRAM_ERASED; FLASHRAM_PAGE_SIZE];
             flashram_finish_operation(device);
         }
         0xb4 => flash.mode = FlashramMode::LoadBytePage,

@@ -233,8 +233,12 @@ pub fn connect_pif_channels(device: &mut device::Device) {
 }
 
 fn get_default_handler(device: &device::Device) -> device::controller::PakHandler {
-    if device.ui.game_id == "NCT" {
-        // Chameleon Twist does not support the mempak
+    if matches!(
+        device.ui.game_id.as_str(),
+        "NCT" | // Chameleon Twist does not support the mempak
+        "CZL" | // Legend of Zelda: Ocarina of Time - rumble only, never reads the mempak
+        "NZS" // Legend of Zelda: Majora's Mask - rumble only, never reads the mempak
+    ) {
         device::controller::PakHandler {
             read: device::controller::rumble::read,
             write: device::controller::rumble::write,
