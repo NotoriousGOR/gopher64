@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 import {
-    GroupBox,
     ComboBox,
     HorizontalBox,
     VerticalBox,
     Switch,
+    Palette,
 } from "std-widgets.slint";
 import { Page } from "page.slint";
+import { SectionHeading, HintText, Divider } from "common.slint";
 
 export global SettingsData {
     in-out property <bool> integer_scaling;
@@ -27,150 +28,181 @@ export global SettingsData {
     in-out property <string> rom_dir;
 }
 
+// A switch plus the one line of explanation the label alone cannot carry. Several of
+// these options ("SSAA downscaling", "Emulate UNFLoader") are meaningless without it.
+component SettingSwitch inherits VerticalLayout {
+    in property <string> label;
+    in property <string> description;
+    in-out property <bool> checked;
+    callback toggled(bool);
+
+    spacing: 1px;
+
+    Switch {
+        text: root.label;
+        checked <=> root.checked;
+        toggled => {
+            root.toggled(self.checked);
+        }
+    }
+
+    if root.description != "": HintText {
+        text: root.description;
+    }
+}
+
+component SettingRow inherits HorizontalLayout {
+    in property <string> label;
+    alignment: start;
+    spacing: 10px;
+
+    Text {
+        text: root.label;
+        vertical-alignment: center;
+    }
+
+    @children
+}
+
 export component Settings inherits Page {
     title: @tr("Settings");
 
-    HorizontalBox {
-        alignment: center;
-        VerticalBox {
-            alignment: start;
-            GroupBox {
-                title: @tr("Game");
-                VerticalBox {
-                    alignment: start;
-                    HorizontalBox {
-                        alignment: start;
-                        Text {
-                            text: @tr("Resolution:");
-                            vertical-alignment: center;
-                        }
+    VerticalLayout {
+        spacing: 12px;
+        max-width: 560px;
 
-                        ComboBox {
-                            model: ["1x", "2x", "4x", "8x"];
-                            current-index: SettingsData.resolution;
-                            selected => {
-                                SettingsData.resolution = self.current-index;
-                            }
-                        }
-                    }
+        SectionHeading {
+            text: @tr("Video");
+        }
 
-                    Switch {
-                        text: @tr("SSAA downscaling");
-                        checked: SettingsData.ssaa;
-                        toggled => {
-                            SettingsData.ssaa = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Integer Scaling");
-                        checked: SettingsData.integer_scaling;
-                        toggled => {
-                            SettingsData.integer_scaling = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Fullscreen");
-                        checked: SettingsData.fullscreen;
-                        toggled => {
-                            SettingsData.fullscreen = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Widescreen (stretch)");
-                        checked: SettingsData.widescreen;
-                        toggled => {
-                            SettingsData.widescreen = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("VSync");
-                        checked: SettingsData.vsync;
-                        toggled => {
-                            SettingsData.vsync = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Apply CRT shader");
-                        checked: SettingsData.apply_crt_shader;
-                        toggled => {
-                            SettingsData.apply_crt_shader = self.checked;
-                        }
-                    }
-
-                    Rectangle {
-                        height: 20px;
-                    }
-
-                    Switch {
-                        text: @tr("Overclock N64 CPU (may cause bugs)");
-                        checked: SettingsData.overclock_n64_cpu;
-                        toggled => {
-                            SettingsData.overclock_n64_cpu = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Disable Expansion Pak");
-                        checked: SettingsData.disable_expansion_pak;
-                        toggled => {
-                            SettingsData.disable_expansion_pak = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Enable Rewind");
-                        checked: SettingsData.rewind;
-                        toggled => {
-                            SettingsData.rewind = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Emulate UNFLoader");
-                        checked: SettingsData.emulate_usb;
-                        toggled => {
-                            SettingsData.emulate_usb = self.checked;
-                        }
-                    }
-
-                    Switch {
-                        text: @tr("Emulate VRU");
-                        checked: SettingsData.emulate_vru;
-                        toggled => {
-                            SettingsData.emulate_vru = self.checked;
-                        }
-                    }
+        SettingRow {
+            label: @tr("Internal resolution");
+            ComboBox {
+                model: ["1x (240p)", "2x (480p)", "4x (960p)", "8x (1920p)"];
+                current-index: SettingsData.resolution;
+                selected => {
+                    SettingsData.resolution = self.current-index;
                 }
             }
+        }
 
-            GroupBox {
-                title: @tr("UI");
-                VerticalBox {
-                    alignment: start;
-                    HorizontalBox {
-                        alignment: start;
-                        Text {
-                            text: @tr("Theme:");
-                            vertical-alignment: center;
-                        }
+        SettingSwitch {
+            label: @tr("SSAA downscaling");
+            description: @tr("Renders above the output resolution and scales back down. Softer and slower than plain upscaling.");
+            checked: SettingsData.ssaa;
+            toggled(on) => {
+                SettingsData.ssaa = on;
+            }
+        }
 
-                        ComboBox {
-                            model: [@tr("System"), @tr("Dark"), @tr("Light")];
-                            current-index: SettingsData.theme;
-                            selected => {
-                                SettingsData.theme = self.current-index;
-                            }
-                        }
-                    }
+        SettingSwitch {
+            label: @tr("Integer scaling");
+            description: @tr("Scales the picture by whole numbers only. Sharp pixels, black bars around the edges.");
+            checked: SettingsData.integer_scaling;
+            toggled(on) => {
+                SettingsData.integer_scaling = on;
+            }
+        }
 
-                    Rectangle {
-                        height: 40px; // so the combobox isn't cut off
-                    }
+        SettingSwitch {
+            label: @tr("Widescreen (stretch)");
+            description: @tr("Fills a 16:9 display with a 4:3 picture. This only changes the output shape — for true widescreen, enable the game's own widescreen cheat.");
+            checked: SettingsData.widescreen;
+            toggled(on) => {
+                SettingsData.widescreen = on;
+            }
+        }
+
+        SettingSwitch {
+            label: @tr("CRT shader");
+            description: @tr("Applies scanlines and an aperture grille over the picture.");
+            checked: SettingsData.apply_crt_shader;
+            toggled(on) => {
+                SettingsData.apply_crt_shader = on;
+            }
+        }
+
+        SettingSwitch {
+            label: @tr("Start fullscreen");
+            checked: SettingsData.fullscreen;
+            toggled(on) => {
+                SettingsData.fullscreen = on;
+            }
+        }
+
+        SettingSwitch {
+            label: @tr("VSync");
+            description: @tr("Syncs the picture to your display to remove tearing. Turn off only if the game feels sluggish.");
+            checked: SettingsData.vsync;
+            toggled(on) => {
+                SettingsData.vsync = on;
+            }
+        }
+
+        Divider { }
+
+        SectionHeading {
+            text: @tr("Emulation");
+        }
+
+        SettingSwitch {
+            label: @tr("Overclock the N64 CPU");
+            description: @tr("Raises the framerate in games that run below their target. Not accurate to hardware, and some games misbehave.");
+            checked: SettingsData.overclock_n64_cpu;
+            toggled(on) => {
+                SettingsData.overclock_n64_cpu = on;
+            }
+        }
+
+        SettingSwitch {
+            label: @tr("Disable Expansion Pak");
+            description: @tr("Reports 4MB of RAM instead of 8MB. Games that require the Expansion Pak — Majora's Mask and Donkey Kong 64 — ignore this.");
+            checked: SettingsData.disable_expansion_pak;
+            toggled(on) => {
+                SettingsData.disable_expansion_pak = on;
+            }
+        }
+
+        SettingSwitch {
+            label: @tr("Rewind");
+            description: @tr("Keeps recent frames in memory so you can step back after a mistake. Uses more RAM.");
+            checked: SettingsData.rewind;
+            toggled(on) => {
+                SettingsData.rewind = on;
+            }
+        }
+
+        SettingSwitch {
+            label: @tr("Emulate UNFLoader");
+            description: @tr("Exposes a virtual 64Drive/SummerCart64 USB link for homebrew development.");
+            checked: SettingsData.emulate_usb;
+            toggled(on) => {
+                SettingsData.emulate_usb = on;
+            }
+        }
+
+        SettingSwitch {
+            label: @tr("Emulate VRU");
+            description: @tr("Emulates the Voice Recognition Unit on port 4, for Hey You, Pikachu! and Densha de Go! 64.");
+            checked: SettingsData.emulate_vru;
+            toggled(on) => {
+                SettingsData.emulate_vru = on;
+            }
+        }
+
+        Divider { }
+
+        SectionHeading {
+            text: @tr("Interface");
+        }
+
+        SettingRow {
+            label: @tr("Theme");
+            ComboBox {
+                model: [@tr("System"), @tr("Dark"), @tr("Light")];
+                current-index: SettingsData.theme;
+                selected => {
+                    SettingsData.theme = self.current-index;
                 }
             }
         }

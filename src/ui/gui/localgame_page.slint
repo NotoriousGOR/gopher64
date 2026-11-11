@@ -5,15 +5,114 @@ import {
     Button,
     HorizontalBox,
     VerticalBox,
-    GroupBox,
+    Palette,
 } from "std-widgets.slint";
 import { Page } from "page.slint";
 import { AboutData, NewVersionButton } from "about_page.slint";
 
+export struct Cartridge {
+    path: string,
+    name: string,
+    detail: string,
+}
+
 export global State {
     in-out property <bool> game_running;
     in-out property <bool> is_android;
-    in-out property <[{ a: string, b: string }]> recent_roms;
+    in-out property <[Cartridge]> recent_roms;
+}
+
+// A row in the recent list. The whole row is the launch target; the remove control only
+// surfaces on hover so a list at rest reads as names, not as a column of buttons.
+component CartridgeRow inherits Rectangle {
+    in property <Cartridge> cartridge;
+    in property <bool> enabled: true;
+    callback activated;
+    callback removed;
+
+    height: 52px;
+    border-radius: 7px;
+    background: (row-touch.has-hover || remove-touch.has-hover) && root.enabled ? Palette.alternate-background : transparent;
+
+    animate background { duration: 120ms; }
+
+    accessible-role: button;
+    accessible-label: root.cartridge.name;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        root.activated();
+    }
+
+    row-touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.activated();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        spacing: 12px;
+
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            spacing: 2px;
+
+            Text {
+                text: root.cartridge.name;
+                font-size: 14px;
+                font-weight: 600;
+                overflow: elide;
+                color: root.enabled ? Palette.foreground : Palette.foreground.transparentize(0.55);
+            }
+
+            if root.cartridge.detail != "": Text {
+                text: root.cartridge.detail;
+                font-size: 11px;
+                overflow: elide;
+                color: Palette.foreground.transparentize(0.45);
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+
+            remove := Rectangle {
+                width: 26px;
+                height: 26px;
+                border-radius: 13px;
+                // kept in the layout at all times so revealing it never shifts the row
+                opacity: row-touch.has-hover || remove-touch.has-hover ? 1 : 0;
+                background: remove-touch.has-hover ? Palette.alternate-background.darker(0.2) : transparent;
+
+                animate opacity { duration: 120ms; }
+
+                accessible-role: button;
+                accessible-label: @tr("Remove from recent list");
+                accessible-action-default => {
+                    root.removed();
+                }
+
+                remove-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.removed();
+                    }
+                }
+
+                Text {
+                    text: "✕";
+                    font-size: 12px;
+                    color: Palette.foreground.transparentize(0.25);
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
 }
 
 export component LocalGame inherits Page {
@@ -21,52 +120,93 @@ export component LocalGame inherits Page {
     callback saves_folder_button_clicked;
     callback newversion_button_clicked;
     callback recent_rom_button_clicked(string);
-    title: @tr("Local Game");
+    callback recent_rom_remove_clicked(string);
+    callback recent_roms_clear_clicked;
+    title: @tr("Play");
 
-    VerticalBox {
+    HorizontalBox {
+        padding: 0px;
         alignment: start;
-        HorizontalBox {
+        spacing: 8px;
+
+        Button {
+            primary: true;
+            text: @tr("Open Cartridge…");
+            enabled: !State.game_running;
+            clicked => {
+                open_rom_button_clicked();
+            }
+        }
+
+        if !State.is_android: Button {
+            text: @tr("Saves Folder");
+            clicked => {
+                saves_folder_button_clicked();
+            }
+        }
+    }
+
+    if AboutData.has_update: NewVersionButton {
+        newversion_button_clicked => {
+            newversion_button_clicked();
+        }
+    }
+
+    if State.recent_roms.length == 0: Rectangle {
+        height: 120px;
+        VerticalLayout {
             alignment: center;
+            spacing: 6px;
+
+            Text {
+                horizontal-alignment: center;
+                font-size: 14px;
+                color: Palette.foreground.transparentize(0.3);
+                text: @tr("No cartridges yet");
+            }
+
+            Text {
+                horizontal-alignment: center;
+                wrap: word-wrap;
+                color: Palette.foreground.transparentize(0.5);
+                text: State.is_android
+                    ? @tr("Open a cartridge to start playing. It will show up here next time.")
+                    : @tr("Open a cartridge, or drag a ROM file onto this window. It will show up here next time.");
+            }
+        }
+    }
+
+    if State.recent_roms.length > 0: VerticalLayout {
+        spacing: 6px;
+
+        HorizontalLayout {
+            alignment: space-between;
+
+            Text {
+                text: @tr("Recent Cartridges");
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0.4px;
+                vertical-alignment: center;
+                color: Palette.foreground.transparentize(0.4);
+            }
+
             Button {
-                text: @tr("Open ROM");
-                enabled: !State.game_running;
+                text: @tr("Clear");
                 clicked => {
-                    open_rom_button_clicked();
+                    recent_roms_clear_clicked();
                 }
             }
         }
 
-        if !State.is_android:HorizontalBox {
-            alignment: center;
-            Button {
-                text: @tr("Open Saves Folder");
-                clicked => {
-                    saves_folder_button_clicked();
-                }
+        for cartridge in State.recent_roms: CartridgeRow {
+            cartridge: cartridge;
+            enabled: !State.game_running;
+            activated => {
+                recent_rom_button_clicked(cartridge.path);
             }
-        }
-
-        if AboutData.has_update:NewVersionButton {
-            newversion_button_clicked => {
-                newversion_button_clicked();
-            }
-        }
-        Rectangle { }
-
-        if State.recent_roms.length > 0:HorizontalBox {
-            alignment: center;
-            GroupBox {
-                title: @tr("Recent ROMs");
-                VerticalLayout {
-                    alignment: space-between;
-                    for rom in State.recent_roms: Button {
-                        text: rom.b;
-                        enabled: !State.game_running;
-                        clicked => {
-                            recent_rom_button_clicked(rom.a);
-                        }
-                    }
-                }
+            removed => {
+                recent_rom_remove_clicked(cartridge.path);
             }
         }
     }

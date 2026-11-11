@@ -1,8 +1,9 @@
 // Copyright © SixtyFPS GmbH <info@slint.dev>
 // SPDX-License-Identifier: MIT
 
-import { Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Button, HorizontalBox, Palette } from "std-widgets.slint";
 import { Page } from "page.slint";
+import { SectionHeading, HintText, Divider } from "common.slint";
 
 export global AboutData {
     in property <string> version;
@@ -12,9 +13,10 @@ export global AboutData {
 export component NewVersionButton {
     callback newversion_button_clicked;
     HorizontalBox {
-        alignment: center;
+        padding: 0px;
+        alignment: start;
         Button {
-            text: @tr("New version available! Click here to download");
+            text: @tr("New version available — download");
             primary: true;
             clicked => {
                 newversion_button_clicked();
@@ -32,30 +34,56 @@ export component About inherits Page {
     callback source_code_button_clicked;
     title: @tr("About");
 
-    VerticalBox {
-        alignment: start;
-        HorizontalBox {
-            alignment: center;
+    VerticalLayout {
+        spacing: 14px;
+        max-width: 560px;
+
+        VerticalLayout {
+            spacing: 2px;
+
+            Text {
+                text: "Gopher64";
+                font-size: 22px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: AboutData.version;
+                font-size: 13px;
+                color: Palette.foreground.transparentize(0.4);
+            }
+        }
+
+        if AboutData.has_update: NewVersionButton {
+            newversion_button_clicked => {
+                newversion_button_clicked();
+            }
+        }
+
+        Divider { }
+
+        SectionHeading {
+            text: @tr("Learn");
+        }
+
+        HorizontalLayout {
+            alignment: start;
+            spacing: 8px;
+
             Button {
                 text: @tr("Wiki");
                 clicked => {
                     wiki_button_clicked();
                 }
             }
-        }
 
-        HorizontalBox {
-            alignment: center;
             Button {
                 text: @tr("Discord Server");
                 clicked => {
                     discord_button_clicked();
                 }
             }
-        }
 
-        HorizontalBox {
-            alignment: center;
             Button {
                 text: @tr("Source Code");
                 clicked => {
@@ -64,35 +92,33 @@ export component About inherits Page {
             }
         }
 
-        HorizontalBox {
-            alignment: center;
+        Divider { }
+
+        SectionHeading {
+            text: @tr("Support Development");
+        }
+
+        HintText {
+            text: @tr("Gopher64 is free and open source. Donations fund the time that goes into it.");
+        }
+
+        HorizontalLayout {
+            alignment: start;
+            spacing: 8px;
+
             Button {
-                text: @tr("Donate (via Patreon)");
+                text: @tr("Patreon");
                 clicked => {
                     patreon_button_clicked();
                 }
             }
 
             Button {
-                text: @tr("Donate (via GitHub)");
+                text: @tr("GitHub Sponsors");
                 clicked => {
                     github_sponsors_button_clicked();
                 }
             }
         }
-
-        HorizontalBox {
-            alignment: center;
-            Text {
-                text: AboutData.version;
-            }
-        }
-
-        if AboutData.has_update:NewVersionButton {
-            newversion_button_clicked => {
-                newversion_button_clicked();
-            }
-        }
-        Rectangle { }
     }
 }

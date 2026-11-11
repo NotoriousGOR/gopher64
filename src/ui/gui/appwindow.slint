@@ -35,6 +35,8 @@ export component AppWindow inherits Window {
     callback discord_button_clicked;
     callback newversion_button_clicked;
     callback recent_rom_button_clicked(string);
+    callback recent_rom_remove_clicked(string);
+    callback recent_roms_clear_clicked;
     callback patreon_button_clicked;
     callback github_sponsors_button_clicked;
     callback source_code_button_clicked;
@@ -108,6 +110,7 @@ export component AppWindow inherits Window {
     in-out property cheats <=> CheatsData.cheats;
 
     in-out property input_deadzone <=> InputProfileData.deadzone;
+    in-out property input_range <=> InputProfileData.range;
     in-out property input_profile_name <=> InputProfileData.profile_name;
     in-out property input_dinput <=> InputProfileData.dinput;
     in-out property show_input_profile <=> InputProfileData.show_input_profile;
@@ -139,7 +142,10 @@ export component AppWindow inherits Window {
     private property <string> popup_message;
     private property <bool> popup_has_close;
     private property <bool> is-portrait: root.width < root.height;
-    private property <length> bar-thickness: 56px;
+    // The rail earns its labels once the window is wide enough that 148px of navigation
+    // does not crowd the content area.
+    private property <bool> rail-labels: !root.is-portrait && root.width >= 760px;
+    private property <length> bar-thickness: root.rail-labels ? 172px : 56px;
     private property <length> safe-left: root.safe-area-insets.left;
     private property <length> safe-top: root.safe-area-insets.top;
     private property <length> safe-right: root.safe-area-insets.right;
@@ -171,15 +177,16 @@ export component AppWindow inherits Window {
 
     side-bar := SideBar {
         portrait: root.is-portrait;
+        show-labels: root.rail-labels;
         title: "Gopher64";
         model: [
             {
                 icon: @image-url("../../../data/ui/icons/local_game.svg"),
-                label: @tr("Menu" => "Local Game"),
+                label: @tr("Menu" => "Play"),
             },
             {
                 icon: @image-url("../../../data/ui/icons/controller.svg"),
-                label: @tr("Menu" => "Controller Config"),
+                label: @tr("Menu" => "Controllers"),
             },
             {
                 icon: @image-url("../../../data/ui/icons/netplay.svg"),
@@ -191,7 +198,7 @@ export component AppWindow inherits Window {
             },
             {
                 icon: @image-url("../../../data/ui/icons/achievements.svg"),
-                label: @tr("Menu" => "RetroAchievements"),
+                label: @tr("Menu" => "Achievements"),
             },
             {
                 icon: @image-url("../../../data/ui/icons/settings.svg"),
@@ -229,6 +236,12 @@ export component AppWindow inherits Window {
             }
             recent_rom_button_clicked(rom) => {
                 recent_rom_button_clicked(rom);
+            }
+            recent_rom_remove_clicked(rom) => {
+                recent_rom_remove_clicked(rom);
+            }
+            recent_roms_clear_clicked => {
+                recent_roms_clear_clicked();
             }
         }
         if(side-bar.current-item == 1 && !show_input_profile): ControllerConfig {

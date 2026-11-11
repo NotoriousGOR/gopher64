@@ -3,13 +3,11 @@
 
 import {
     StandardButton,
-    VerticalBox,
-    HorizontalBox,
     Button,
-    LineEdit,
 } from "std-widgets.slint";
 import { Page } from "page.slint";
 import { State } from "localgame_page.slint";
+import { SectionHeading, HintText, Divider } from "common.slint";
 
 export global NetplayData {
     in-out property <string> player_name;
@@ -36,21 +34,27 @@ export component Netplay inherits Page {
     callback netplay_feedback_button_clicked;
     title: @tr("Netplay");
 
-    VerticalBox {
-        alignment: start;
-        HorizontalBox {
-            alignment: center;
+    VerticalLayout {
+        spacing: 14px;
+        max-width: 560px;
+
+        HintText {
+            text: @tr("Play with others over the internet. Everyone needs the same cartridge; one player hosts a session and the rest join it.");
+        }
+
+        HorizontalLayout {
+            alignment: start;
+            spacing: 8px;
+
             Button {
+                primary: true;
                 enabled: !State.game_running;
                 text: @tr("Create Session");
                 clicked => {
                     create_session_button_clicked();
                 }
             }
-        }
 
-        HorizontalBox {
-            alignment: center;
             Button {
                 enabled: !State.game_running;
                 text: @tr("Join Session");
@@ -60,12 +64,16 @@ export component Netplay inherits Page {
             }
         }
 
-        Rectangle {
-            height: 20px;
+        Divider { }
+
+        SectionHeading {
+            text: @tr("Help");
         }
 
-        HorizontalBox {
-            alignment: center;
+        HorizontalLayout {
+            alignment: start;
+            spacing: 8px;
+
             Button {
                 text: @tr("Netplay Discord Channel");
                 clicked => {

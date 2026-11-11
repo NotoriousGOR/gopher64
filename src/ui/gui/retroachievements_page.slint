@@ -5,10 +5,10 @@ import {
     LineEdit,
     Switch,
     Button,
-    HorizontalBox,
-    VerticalBox,
+    Palette,
 } from "std-widgets.slint";
 import { Page } from "page.slint";
+import { SectionHeading, HintText, Divider } from "common.slint";
 
 export global RAData {
     in-out property <bool> enabled;
@@ -30,79 +30,61 @@ export component RetroAchievements inherits Page {
     callback ra_toggled(bool, bool, bool, bool, bool);
     callback ra_games_clicked;
     callback ra_show_profile_clicked;
-    title: @tr("RetroAchievements");
+    title: @tr("Achievements");
 
-    VerticalBox {
-        alignment: start;
-        HorizontalBox {
-            alignment: center;
-            VerticalBox {
-                alignment: start;
-                Switch {
-                    text: @tr("Enabled");
-                    checked: RAData.enabled;
-                    toggled => {
-                        RAData.enabled = self.checked;
-                        if (!RAData.enabled) {
-                            RAData.ra_username = "";
-                            username_widget.text = "";
-                            password_widget.text = "";
-                            RAData.current_user_message = RAData.not_logged_in;
-                            RAData.ra_show_profile = false;
-                        }
-                        ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
-                    }
-                }
+    // Guarded here rather than only on the button, so pressing Enter in either field
+    // cannot submit an empty or already in-flight login.
+    function try_login() {
+        if (RAData.enabled && !RAData.ra_logging_in && RAData.ra_username != "" && RAData.ra_password != "") {
+            RAData.ra_logging_in = true;
+            ra_button_clicked(RAData.ra_password);
+            RAData.ra_password = "";
+        }
+    }
 
-                if !RAData.ra_casual_only: Switch {
-                    text: @tr("Hardcore mode");
-                    checked: RAData.hardcore;
-                    enabled: RAData.enabled;
-                    toggled => {
-                        RAData.hardcore = self.checked;
-                        ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
-                    }
-                }
-                Switch {
-                    text: @tr("Challenge Indicators");
-                    checked: RAData.challenge;
-                    enabled: RAData.enabled;
-                    toggled => {
-                        RAData.challenge = self.checked;
-                        ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
-                    }
-                }
+    VerticalLayout {
+        spacing: 14px;
+        max-width: 520px;
 
-                Switch {
-                    text: @tr("Leaderboard Trackers");
-                    checked: RAData.leaderboard;
-                    enabled: RAData.enabled;
-                    toggled => {
-                        RAData.leaderboard = self.checked;
-                        ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
-                    }
-                }
+        HintText {
+            text: @tr("RetroAchievements adds unlockable achievements to supported games. You need a free RetroAchievements account to use it.");
+        }
 
-                Switch {
-                    text: @tr("Discord Rich Presence");
-                    checked: RAData.rich_presence;
-                    enabled: RAData.enabled;
-                    toggled => {
-                        RAData.rich_presence = self.checked;
-                        ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
-                    }
+        Switch {
+            text: @tr("Enable RetroAchievements");
+            checked: RAData.enabled;
+            toggled => {
+                RAData.enabled = self.checked;
+                if (!RAData.enabled) {
+                    RAData.ra_username = "";
+                    RAData.ra_password = "";
+                    RAData.current_user_message = RAData.not_logged_in;
+                    RAData.ra_show_profile = false;
                 }
+                ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
             }
         }
 
-        HorizontalBox {
-            alignment: center;
+        Divider { }
+
+        SectionHeading {
+            text: @tr("Account");
+        }
+
+        // Login state reads as a sentence, with the action that changes it right beside it.
+        HorizontalLayout {
+            alignment: start;
+            spacing: 10px;
+
             Text {
                 text: RAData.current_user_message;
                 vertical-alignment: center;
+                color: RAData.ra_show_profile
+                    ? Palette.foreground
+                    : Palette.foreground.transparentize(0.4);
             }
 
-            if RAData.ra_show_profile:Button {
+            if RAData.ra_show_profile: Button {
                 enabled: RAData.enabled;
                 text: @tr("View Profile");
                 clicked => {
@@ -111,14 +93,20 @@ export component RetroAchievements inherits Page {
             }
         }
 
-        HorizontalBox {
-            alignment: center;
+        if !RAData.ra_show_profile: HorizontalLayout {
+            alignment: start;
+            spacing: 8px;
+
             username_widget := LineEdit {
                 enabled: RAData.enabled;
                 placeholder-text: @tr("Username");
                 text: RAData.ra_username;
+                width: 180px;
                 edited(text) => {
                     RAData.ra_username = text;
+                }
+                accepted => {
+                    root.try_login();
                 }
             }
 
@@ -126,32 +114,84 @@ export component RetroAchievements inherits Page {
                 enabled: RAData.enabled;
                 input-type: password;
                 placeholder-text: @tr("Password");
+                text: RAData.ra_password;
+                width: 180px;
                 edited(text) => {
                     RAData.ra_password = text;
                 }
+                accepted => {
+                    root.try_login();
+                }
             }
-        }
 
-        HorizontalBox {
-            alignment: center;
-            Button {
-                text: @tr("Login");
+            login := Button {
+                text: RAData.ra_logging_in ? @tr("Signing in…") : @tr("Sign In");
+                primary: true;
                 enabled: RAData.enabled && !RAData.ra_logging_in && RAData.ra_username != "" && RAData.ra_password != "";
                 clicked => {
-                    RAData.ra_logging_in = true;
-                    ra_button_clicked(RAData.ra_password);
-                    RAData.ra_password = "";
-                    password_widget.text = "";
+                    root.try_login();
                 }
             }
         }
 
-        Rectangle {
-            height: 20px;
+        Divider { }
+
+        SectionHeading {
+            text: @tr("While Playing");
         }
 
-        HorizontalBox {
-            alignment: center;
+        if !RAData.ra_casual_only: VerticalLayout {
+            spacing: 1px;
+
+            Switch {
+                text: @tr("Hardcore mode");
+                checked: RAData.hardcore;
+                enabled: RAData.enabled;
+                toggled => {
+                    RAData.hardcore = self.checked;
+                    ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
+                }
+            }
+
+            HintText {
+                text: @tr("Achievements count for leaderboards, but savestates, rewind and pausing are disabled.");
+            }
+        }
+
+        Switch {
+            text: @tr("Challenge indicators");
+            checked: RAData.challenge;
+            enabled: RAData.enabled;
+            toggled => {
+                RAData.challenge = self.checked;
+                ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
+            }
+        }
+
+        Switch {
+            text: @tr("Leaderboard trackers");
+            checked: RAData.leaderboard;
+            enabled: RAData.enabled;
+            toggled => {
+                RAData.leaderboard = self.checked;
+                ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
+            }
+        }
+
+        Switch {
+            text: @tr("Discord rich presence");
+            checked: RAData.rich_presence;
+            enabled: RAData.enabled;
+            toggled => {
+                RAData.rich_presence = self.checked;
+                ra_toggled(RAData.enabled,RAData.hardcore,RAData.challenge,RAData.leaderboard,RAData.rich_presence);
+            }
+        }
+
+        Divider { }
+
+        HorizontalLayout {
+            alignment: start;
             Button {
                 text: @tr("View Supported Games");
                 clicked => {

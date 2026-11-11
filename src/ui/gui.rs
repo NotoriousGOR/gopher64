@@ -110,28 +110,54 @@ fn rom_exists(path: &str) -> bool {
     return android::rom_exists(path);
 }
 
+/// How many recently played cartridges to remember. Kept in one place because the GUI and
+/// the CLI both trim the list.
+pub const RECENT_LIMIT: usize = 20;
+
+/// Build the display row for a cartridge path: the file name without its extension, and
+/// the containing folder underneath so two copies of the same ROM stay distinguishable.
+fn cartridge_entry(path: &str) -> Cartridge {
+    let decoded = decode_path(path);
+    let decoded_path = std::path::Path::new(&decoded);
+    let name = decoded_path
+        .file_stem()
+        .or_else(|| decoded_path.file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| decoded.clone());
+    let detail = decoded_path
+        .parent()
+        .map(|parent| parent.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    Cartridge {
+        path: path.into(),
+        name: name.into(),
+        detail: detail.into(),
+    }
+}
+
+fn recent_model(paths: impl IntoIterator<Item = String>) -> slint::ModelRc<Cartridge> {
+    slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+        paths
+            .into_iter()
+            .filter(|path| rom_exists(path))
+            .take(RECENT_LIMIT)
+            .map(|path| cartridge_entry(&path))
+            .collect::<Vec<Cartridge>>(),
+    )))
+}
+
+fn store_recent_roms(app: &AppWindow) {
+    let mut config = ui::config::Config::new();
+    config.ui.recent_roms = app
+        .get_recent_roms()
+        .iter()
+        .map(|cartridge| cartridge.path.to_string())
+        .collect();
+}
+
 fn local_game_window(app: &AppWindow, config: &ui::config::Config) {
-    app.set_recent_roms(slint::ModelRc::from(std::rc::Rc::new(
-        slint::VecModel::from(
-            config
-                .ui
-                .recent_roms
-                .iter()
-                .filter(|x| rom_exists(x))
-                .map(|x| {
-                    (
-                        x.into(),
-                        std::path::Path::new(&decode_path(x))
-                            .file_name()
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
-                            .into(),
-                    )
-                })
-                .collect::<Vec<(slint::SharedString, slint::SharedString)>>(),
-        ),
-    )));
+    app.set_recent_roms(recent_model(config.ui.recent_roms.iter().cloned()));
 
     let weak = app.as_weak();
     app.on_open_rom_button_clicked(move || {
@@ -146,6 +172,30 @@ fn local_game_window(app: &AppWindow, config: &ui::config::Config) {
     app.on_recent_rom_button_clicked(move |rom| {
         weak.upgrade_in_event_loop(move |handle| {
             run_with_path(handle.as_weak(), std::path::PathBuf::from(rom.to_string()));
+        })
+        .unwrap();
+    });
+
+    let weak = app.as_weak();
+    app.on_recent_rom_remove_clicked(move |rom| {
+        weak.upgrade_in_event_loop(move |handle| {
+            let remaining: Vec<String> = handle
+                .get_recent_roms()
+                .iter()
+                .map(|cartridge| cartridge.path.to_string())
+                .filter(|path| path.as_str() != rom.as_str())
+                .collect();
+            handle.set_recent_roms(recent_model(remaining));
+            store_recent_roms(&handle);
+        })
+        .unwrap();
+    });
+
+    let weak = app.as_weak();
+    app.on_recent_roms_clear_clicked(move || {
+        weak.upgrade_in_event_loop(move |handle| {
+            handle.set_recent_roms(recent_model(std::iter::empty()));
+            store_recent_roms(&handle);
         })
         .unwrap();
     });
@@ -349,6 +399,7 @@ fn controller_window(app: &AppWindow, config: &ui::config::Config) {
         weak_app
             .upgrade_in_event_loop(move |handle| {
                 handle.set_input_deadzone(ui::input_profile::DEADZONE_DEFAULT);
+                handle.set_input_range(ui::input_profile::RANGE_DEFAULT);
                 handle.set_input_profile_name(String::new().into());
                 handle.set_input_dinput(false);
                 handle.set_show_input_profile(true);
@@ -364,10 +415,11 @@ fn controller_window(app: &AppWindow, config: &ui::config::Config) {
                 let profile_name = handle.get_input_profile_name();
                 let dinput = handle.get_input_dinput();
                 let deadzone = handle.get_input_deadzone();
+                let range = handle.get_input_range();
                 handle.set_show_input_profile(false);
 
                 #[cfg(target_os = "android")]
-                ui::android::spawn_configure_input_profile(profile_name, dinput, deadzone);
+                ui::android::spawn_configure_input_profile(profile_name, dinput, deadzone, range);
 
                 #[cfg(not(target_os = "android"))]
                 tokio::spawn(async move {
@@ -387,6 +439,8 @@ fn controller_window(app: &AppWindow, config: &ui::config::Config) {
                         &profile_name,
                         "--deadzone",
                         &deadzone.to_string(),
+                        "--range",
+                        &range.to_string(),
                     ]);
                     if dinput {
                         command.arg("--use-dinput");
@@ -664,24 +718,15 @@ fn decode_path(path: &str) -> String {
 }
 
 pub fn update_recent_roms(app: &AppWindow, file_path: std::path::PathBuf) {
-    let recent_roms = slint::VecModel::default();
-    recent_roms.push((
-        file_path.to_str().unwrap().into(),
-        std::path::Path::new(&decode_path(file_path.to_str().unwrap()))
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .into(),
-    ));
-
-    for rom in app.get_recent_roms().iter() {
-        if rom.0 != file_path.to_str().unwrap() && recent_roms.row_count() < 5 && rom_exists(&rom.0)
-        {
-            recent_roms.push(rom);
-        }
-    }
-    app.set_recent_roms(slint::ModelRc::from(std::rc::Rc::new(recent_roms)));
+    let launched = file_path.to_str().unwrap().to_string();
+    let mut ordered = vec![launched.clone()];
+    ordered.extend(
+        app.get_recent_roms()
+            .iter()
+            .map(|cartridge| cartridge.path.to_string())
+            .filter(|path| *path != launched),
+    );
+    app.set_recent_roms(recent_model(ordered));
 }
 
 pub async fn get_nointro_name(

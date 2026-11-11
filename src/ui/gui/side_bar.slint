@@ -12,11 +12,12 @@ component SideBarButton inherits Rectangle {
     in property <bool> selected;
     in property <bool> has-focus;
     in property <image> icon;
+    in property <string> label;
+    in property <bool> show-label;
 
     callback clicked <=> touch.clicked;
 
-    width: 48px;
-    height: 48px;
+    // Size is owned by SideBarItem so the rail's layout has something to measure.
     border-radius: 8px;
 
     highlight := Rectangle {
@@ -34,15 +35,30 @@ component SideBarButton inherits Rectangle {
         width: 24px;
         height: 24px;
         colorize: Palette.foreground;
-        x: (parent.width - self.width) / 2;
+        x: root.show-label ? 12px : (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
 
         animate colorize { duration: 150ms; }
     }
 
+    label-display := Text {
+        visible: root.show-label;
+        text: root.label;
+        font-size: 13px;
+        overflow: elide;
+        vertical-alignment: center;
+        color: Palette.foreground;
+        x: 48px;
+        width: parent.width - 58px;
+        height: 100%;
+
+        animate color { duration: 150ms; }
+    }
+
     touch := TouchArea {
         width: 100%;
         height: 100%;
+        mouse-cursor: pointer;
     }
 
     states [
@@ -50,6 +66,7 @@ component SideBarButton inherits Rectangle {
             highlight.opacity: 1;
             highlight.background: Palette.accent-background;
             icon-display.colorize: Palette.accent-foreground;
+            label-display.color: Palette.accent-foreground;
         }
         pressed when touch.pressed && !root.selected: {
             highlight.opacity: 0.55;
@@ -69,8 +86,14 @@ component SideBarItem inherits Rectangle {
     in property <bool> has-focus;
     in property <image> icon;
     in property <string> label;
+    in property <bool> show-label;
 
     callback clicked <=> button.clicked;
+
+    // A bare Rectangle has no size of its own, so without these the rail's layout
+    // measures every item as zero-high and stacks them all on top of each other.
+    width: root.show-label ? 160px : 48px;
+    height: 48px;
 
     accessible-role: tab;
     accessible-label: root.label;
@@ -82,13 +105,19 @@ component SideBarItem inherits Rectangle {
     }
 
     button := SideBarButton {
-        Tooltip {
+        width: 100%;
+        height: 100%;
+
+        // the tooltip is the only affordance when the rail is collapsed to icons
+        if !root.show-label: Tooltip {
             Text {
                 text: root.label;
             }
         }
 
         icon: root.icon;
+        label: root.label;
+        show-label: root.show-label;
         selected: root.selected;
         has-focus: root.has-focus;
     }
@@ -98,6 +127,8 @@ export component SideBar inherits Rectangle {
     in property <[SideBarEntry]> model: [];
     in property <string> title: "Gopher64";
     in property <bool> portrait;
+    // Labels only when the rail is wide enough to hold them without truncating.
+    in property <bool> show-labels;
     in-out property <int> current-item: 0;
 
     Rectangle {
@@ -142,7 +173,7 @@ export component SideBar inherits Rectangle {
         height: 100%;
         padding: 4px;
         spacing: 4px;
-        alignment: space-evenly;
+        alignment: start;
 
         accessible-role: tab-list;
         accessible-label: root.title;
@@ -159,6 +190,7 @@ export component SideBar inherits Rectangle {
                 tab-index: index;
                 icon: item.icon;
                 label: item.label;
+                show-label: root.show-labels;
                 selected: index == root.current-item;
             }
         }

@@ -1,0 +1,22 @@
+// Shared building blocks so every page uses the same headings, dividers and hint text
+// instead of each one inventing its own spacing and type treatment.
+
+import { Palette } from "std-widgets.slint";
+
+export component SectionHeading inherits Text {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: Palette.foreground.transparentize(0.4);
+}
+
+export component HintText inherits Text {
+    font-size: 11px;
+    wrap: word-wrap;
+    color: Palette.foreground.transparentize(0.45);
+}
+
+export component Divider inherits Rectangle {
+    height: 1px;
+    background: Palette.border;
+}
