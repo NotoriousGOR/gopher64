@@ -572,7 +572,6 @@ impl Device {
                 word_buffer: [0; 40],
                 words: Vec::new(),
                 talking: false,
-                word_mappings: rustc_hash::FxHashMap::default(),
             },
             rng: set_rng(),
             transferpaks: [
